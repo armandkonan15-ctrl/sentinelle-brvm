@@ -1,0 +1,51 @@
+name: Sentinelle BRVM – collecte
+
+on:
+  schedule:
+    # Heure d'Abidjan = UTC. Toutes les heures pendant la séance, du lundi au vendredi…
+    - cron: '7 9-15 * * 1-5'
+    # …puis une collecte après la clôture (note de clôture et alertes du soir).
+    - cron: '47 16 * * 1-5'
+  workflow_dispatch: {}   # bouton « Run workflow » pour lancer une collecte à la main
+
+permissions:
+  contents: write
+
+concurrency:
+  group: collecte
+  cancel-in-progress: false
+
+jobs:
+  collecte:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Installer les dépendances
+        run: npm ci
+
+      - name: Collecter les cours, les actualités et calculer les signaux
+        run: node src/collect.js
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+
+      - name: Publier les données sur le tableau de bord
+        if: always()
+        run: |
+          git config user.name "sentinelle-bot"
+          git config user.email "sentinelle-bot@users.noreply.github.com"
+          git add docs/data
+          if git diff --cached --quiet; then
+            echo "Aucune donnée nouvelle."
+          else
+            git commit -m "Données du $(date -u +'%d/%m/%Y %H:%M') UTC"
+            git pull --rebase --autostash
+            git push
+          fi
