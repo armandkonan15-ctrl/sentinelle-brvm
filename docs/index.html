@@ -1,0 +1,396 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Sentinelle BRVM</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Crect width=%2232%22 height=%2232%22 rx=%227%22 fill=%22%230D6A5D%22/%3E%3Cpath d=%22M6 22l7-8 5 5 8-10%22 stroke=%22white%22 stroke-width=%223%22 fill=%22none%22/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout : salle des marchés. Bandeau d'état en haut, onglets, puis écrans de travail en colonne. */
+:root{
+  --bg:#EDF1EF; --surface:#FFFFFF; --surface-2:#F5F8F6; --ink:#13201D; --muted:#5A6A66; --line:#D4DCD9;
+  --accent:#0D6A5D; --accent-soft:#DAECE8; --accent-ink:#FFFFFF;
+  --buy:#17834A; --buy-soft:#DCF0E3; --sell:#BC3A27; --sell-soft:#F7E0DA; --warn:#A0650F; --warn-soft:#F5E8D0;
+  --grid:#E1E7E4; --ma50:#2E6AAE; --ma200:#B07418; --band:rgba(13,106,93,.10); --price:#13201D;
+  --f-display:"Bricolage Grotesque","Segoe UI",system-ui,sans-serif;
+  --f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0E1513; --surface:#15201D; --surface-2:#1A2724; --ink:#E4EDEA; --muted:#93A5A0; --line:#28362F;
+    --accent:#45B9A4; --accent-soft:#1B3A34; --accent-ink:#04201B;
+    --buy:#4FC583; --buy-soft:#173326; --sell:#F27D66; --sell-soft:#3A1F1A; --warn:#E2B04E; --warn-soft:#352A15;
+    --grid:#22302C; --ma50:#74AAE6; --ma200:#E2B04E; --band:rgba(69,185,164,.12); --price:#E4EDEA;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0E1513; --surface:#15201D; --surface-2:#1A2724; --ink:#E4EDEA; --muted:#93A5A0; --line:#28362F;
+  --accent:#45B9A4; --accent-soft:#1B3A34; --accent-ink:#04201B;
+  --buy:#4FC583; --buy-soft:#173326; --sell:#F27D66; --sell-soft:#3A1F1A; --warn:#E2B04E; --warn-soft:#352A15;
+  --grid:#22302C; --ma50:#74AAE6; --ma200:#E2B04E; --band:rgba(69,185,164,.12); --price:#E4EDEA;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0}
+[hidden]{display:none!important}
+:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.5}
+.wrap{max-width:1200px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:18px 48px}
+header.top{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px 24px;padding-bottom:14px}
+.brand h1{font-family:var(--f-display);font-weight:800;font-size:clamp(1.6rem,4vw,2.2rem);letter-spacing:-.02em;margin:0;line-height:1.05}
+.brand h1 span{color:var(--accent)}
+.brand p{margin:3px 0 0;color:var(--muted);font-size:.86rem}
+.status{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;font-size:.8rem;color:var(--muted)}
+.live{display:inline-flex;align-items:center;gap:7px;font-weight:600;color:var(--ink)}
+.live i{width:9px;height:9px;border-radius:50%;background:var(--muted);display:block}
+.live.on i{background:var(--buy);box-shadow:0 0 0 0 var(--buy)}
+@media (prefers-reduced-motion:no-preference){.live.on i{animation:pulse 2s infinite}}
+@keyframes pulse{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--buy) 60%,transparent)}70%{box-shadow:0 0 0 8px transparent}100%{box-shadow:0 0 0 0 transparent}}
+nav.tabs{display:flex;gap:4px;overflow-x:auto;border-bottom:1px solid var(--line);margin-bottom:18px;scrollbar-width:none}
+nav.tabs a{padding:10px 14px;font-weight:600;font-size:.9rem;color:var(--muted);text-decoration:none;border-bottom:3px solid transparent;white-space:nowrap}
+nav.tabs a[aria-current="page"]{color:var(--ink);border-bottom-color:var(--accent)}
+.screen{display:grid;gap:16px}
+.cols{display:grid;gap:16px}
+@media (min-width:980px){.cols{grid-template-columns:minmax(0,1fr) 340px;align-items:start}}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px 18px;min-width:0}
+.panel h2{font-family:var(--f-display);font-weight:700;font-size:1.08rem;margin:0 0 10px;letter-spacing:-.01em;text-wrap:balance}
+.phead{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+.phead h2{margin:0}
+.eyebrow{font-size:.7rem;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);font-weight:600}
+.hint{font-size:.8rem;color:var(--muted);margin:0}
+label.f{display:grid;gap:4px;font-size:.8rem;color:var(--muted);font-weight:500}
+input[type=text],input[type=number],input[type=search],select,textarea{width:100%;font:inherit;font-size:.92rem;color:var(--ink);background:var(--surface-2);border:1px solid var(--line);border-radius:7px;padding:8px 10px}
+textarea{font-family:var(--f-mono);font-size:.76rem;min-height:120px;resize:vertical;white-space:pre}
+input:focus-visible,select:focus-visible,textarea:focus-visible,button:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.stack{display:grid;gap:10px}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.seg{display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg label{display:block;text-align:center;padding:8px 6px;font-size:.84rem;cursor:pointer;background:var(--surface-2);color:var(--muted);font-weight:500}
+.seg input{position:absolute;opacity:0;pointer-events:none}
+.seg label:has(input:checked){background:var(--accent);color:var(--accent-ink)}
+button{font:inherit;font-size:.86rem;font-weight:600;border-radius:7px;padding:8px 14px;cursor:pointer;border:1px solid var(--line);background:var(--surface-2);color:var(--ink)}
+button.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+button:disabled{opacity:.55;cursor:default}
+button.sm{padding:4px 10px;font-size:.78rem}
+.btnlink{display:inline-block;font-weight:600;font-size:.8rem;border-radius:7px;padding:5px 12px;background:var(--accent);color:var(--accent-ink);text-decoration:none}
+.msg{font-size:.84rem;padding:9px 12px;border-radius:7px;margin:0}
+.msg.err{background:var(--sell-soft);color:var(--sell)}
+.msg.ok{background:var(--accent-soft);color:var(--ink)}
+.msg.warn{background:var(--warn-soft);color:var(--warn)}
+details summary{cursor:pointer;font-weight:600;font-size:.88rem}
+details[open] summary{margin-bottom:10px}
+.chip{display:inline-block;font-size:.74rem;font-weight:600;padding:2px 9px;border-radius:999px;background:var(--surface-2);border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+.chip.warn{background:var(--warn-soft);color:var(--warn);border-color:transparent}
+.chip.sell{background:var(--sell-soft);color:var(--sell);border-color:transparent}
+.chip.buy{background:var(--buy-soft);color:var(--buy);border-color:transparent}
+.chip.acc{background:var(--accent-soft);color:var(--accent);border-color:transparent}
+.flags{display:flex;flex-wrap:wrap;gap:6px}
+.up{color:var(--buy)} .down{color:var(--sell)}
+.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+
+/* Bandeau marché */
+.breadth{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px 18px}
+.breadth .k{font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;font-weight:600}
+.breadth .v{font-family:var(--f-mono);font-size:1.15rem}
+.bar{display:flex;height:8px;border-radius:4px;overflow:hidden;background:var(--grid);margin-top:12px}
+.bar span{display:block;height:100%}
+.movers{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px}
+.movers ol{list-style:none;margin:6px 0 0;padding:0;display:grid;gap:4px;font-size:.84rem}
+.movers li{display:flex;justify-content:space-between;gap:8px;cursor:pointer}
+.brief p{margin:0 0 8px;max-width:75ch}
+.brief p:last-child{margin-bottom:0}
+
+/* Tableaux */
+.tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:8px}
+table{border-collapse:collapse;width:100%;font-size:.82rem;font-variant-numeric:tabular-nums}
+th,td{padding:7px 10px;text-align:right;white-space:nowrap;border-bottom:1px solid var(--line)}
+th:first-child,td:first-child{text-align:left}
+th{font-weight:600;color:var(--muted);background:var(--surface-2);font-size:.72rem;text-transform:uppercase;letter-spacing:.05em;position:sticky;top:0}
+th[data-sort]{cursor:pointer}
+th[data-sort][aria-sort]::after{content:" ▾"}
+th[data-sort][aria-sort="ascending"]::after{content:" ▴"}
+tr:last-child td{border-bottom:0}
+tbody tr.click{cursor:pointer}
+tbody tr.click:hover td{background:var(--surface-2)}
+td.pos{color:var(--buy)} td.neg{color:var(--sell)}
+td .nm{display:block;font-size:.72rem;color:var(--muted);max-width:180px;overflow:hidden;text-overflow:ellipsis}
+.scorebar{display:inline-block;width:46px;height:6px;background:var(--grid);border-radius:3px;position:relative;vertical-align:middle;margin-left:6px}
+.scorebar b{position:absolute;top:0;bottom:0;border-radius:3px}
+
+/* Verdict */
+.verdict{display:grid;gap:14px;padding:20px;border-radius:10px;border:1px solid var(--line);background:var(--surface);position:relative;overflow:hidden}
+.verdict::before{content:"";position:absolute;inset:0 auto 0 0;width:6px;background:var(--vcol,var(--muted))}
+.vhead{display:flex;flex-wrap:wrap;justify-content:space-between;gap:10px 20px;align-items:flex-start}
+.vword{font-family:var(--f-display);font-weight:800;font-size:clamp(2rem,6vw,3rem);line-height:1;letter-spacing:-.03em;color:var(--vcol,var(--ink));margin:4px 0 0}
+.vsub{font-size:.95rem;max-width:66ch;margin:0;text-wrap:pretty}
+.vstats{display:grid;grid-template-columns:repeat(3,auto);gap:4px 22px;font-family:var(--f-mono);font-size:.8rem;color:var(--muted)}
+.vstats b{display:block;font-size:1.05rem;color:var(--ink);font-weight:500}
+.gauge{position:relative;height:30px}
+.gauge .track{position:absolute;left:0;right:0;top:10px;height:8px;border-radius:4px;background:linear-gradient(90deg,var(--sell) 0%,var(--sell) 27.5%,var(--warn) 27.5%,var(--warn) 40%,var(--line) 40%,var(--line) 60%,var(--buy-soft) 60%,var(--buy-soft) 72.5%,var(--buy) 72.5%)}
+.gauge .mk{position:absolute;top:2px;width:3px;height:24px;background:var(--ink);border-radius:2px;transform:translateX(-50%)}
+.glbl{display:flex;justify-content:space-between;font-family:var(--f-mono);font-size:.68rem;color:var(--muted);margin-top:-8px}
+@media (prefers-reduced-motion:no-preference){.gauge .mk{transition:left .5s ease}}
+
+.plan{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.plan div{background:var(--surface);padding:10px 12px}
+.plan .k{font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;font-weight:600}
+.plan .v{font-family:var(--f-mono);font-size:1.02rem;font-variant-numeric:tabular-nums}
+.plan .s{font-size:.74rem;color:var(--muted)}
+.v.buy{color:var(--buy)} .v.sell{color:var(--sell)}
+.note{font-size:.88rem;margin:12px 0 0;max-width:74ch}
+
+.models{display:grid}
+.model{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 14px;padding:11px 0;border-top:1px solid var(--line)}
+.model:first-child{border-top:0}
+.model h3{margin:0;font-size:.9rem;font-weight:600}
+.model h3 small{font-weight:400;color:var(--muted);font-family:var(--f-mono);font-size:.72rem;margin-left:6px}
+.model p{margin:0;font-size:.84rem;color:var(--muted);grid-column:1/-1;max-width:78ch}
+.dots{display:flex;gap:4px;align-items:center}
+.dots i{width:12px;height:12px;border-radius:3px;background:var(--grid);display:block}
+.dots i.n{background:var(--sell)} .dots i.p{background:var(--buy)}
+.dots i.mid{width:2px;height:16px;background:var(--line);border-radius:0}
+
+.chartbox{position:relative;width:100%;height:340px}
+.chartbox.small{height:220px}
+canvas{display:block;width:100%;height:100%}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:.76rem;color:var(--muted);margin-top:8px}
+.legend span::before{content:"";display:inline-block;width:14px;height:3px;border-radius:2px;margin-right:6px;vertical-align:middle;background:var(--c)}
+.rangebar{display:flex;gap:6px}
+.rangebar button{padding:4px 10px;font-size:.76rem}
+.rangebar button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+
+.expert{display:grid;gap:12px}
+.expert section{display:grid;grid-template-columns:96px minmax(0,1fr);gap:10px}
+.expert section .eyebrow{padding-top:3px;color:var(--accent)}
+.expert section p{margin:0;max-width:72ch}
+@media (max-width:520px){.expert section{grid-template-columns:1fr;gap:2px}}
+
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px 18px;margin-bottom:14px}
+.kpis div{display:grid}
+.kpis .k{font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;font-weight:600}
+.kpis .v{font-family:var(--f-mono);font-size:1.1rem;font-variant-numeric:tabular-nums}
+
+/* IA */
+.ai{font-size:.92rem;max-width:76ch}
+.ai p{margin:0 0 9px}
+.ai ul{margin:0 0 9px;padding-left:1.2em}
+.ai h4{font-family:var(--f-display);font-size:1rem;margin:12px 0 6px}
+.chat{display:grid;gap:12px}
+.bubble{padding:12px 14px;border-radius:10px;max-width:82ch;min-width:0}
+.bubble.me{background:var(--accent-soft);justify-self:end}
+.bubble.bot{background:var(--surface-2);border:1px solid var(--line)}
+.bubble .eyebrow{margin-bottom:4px}
+.quick{display:flex;flex-wrap:wrap;gap:6px}
+.quick button{font-weight:500;font-size:.8rem}
+
+/* Actualités */
+.news{display:grid}
+.news article{display:grid;gap:4px;padding:12px 0;border-top:1px solid var(--line)}
+.news article:first-child{border-top:0}
+.news h3{margin:0;font-size:.95rem;font-weight:600;text-wrap:pretty}
+.news h3 a{color:inherit;text-decoration:none}
+.news h3 a:hover{text-decoration:underline}
+.news p{margin:0;font-size:.85rem;color:var(--muted);max-width:78ch}
+.news .meta{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:.76rem;color:var(--muted)}
+.empty{padding:22px;text-align:center;color:var(--muted);font-size:.9rem}
+.wl{display:flex;flex-wrap:wrap;gap:6px}
+.wl .chip button{border:0;background:none;padding:0 0 0 6px;font-size:.8rem;color:inherit;cursor:pointer}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <h1>Sentinelle <span>BRVM</span></h1>
+      <p>Robot de trading autonome pour la BRVM. Données Sika Finance et BRVM, signaux calculés sans IA, alertes Telegram.</p>
+    </div>
+    <div class="status">
+      <span class="live" id="live"><i></i><span id="livetxt">Connexion…</span></span>
+      <span id="lastrun"></span>
+      <a class="btnlink" id="refresh" href="#" target="_blank" rel="noopener" hidden>Lancer une collecte</a>
+    </div>
+  </header>
+  <p class="msg warn" id="banner" hidden></p>
+
+  <nav class="tabs" aria-label="Écrans">
+    <a href="#marche" data-tab="marche">Marché</a>
+    <a href="#valeur" data-tab="valeur">Valeur</a>
+    <a href="#portefeuille" data-tab="portefeuille">Portefeuille</a>
+    <a href="#actualites" data-tab="actualites">Actualités</a>
+  </nav>
+
+  <!-- MARCHÉ -->
+  <section class="screen" id="tab-marche">
+    <div class="panel">
+      <div class="phead"><h2>État du marché</h2><span class="hint" id="mktdate"></span></div>
+      <div class="breadth" id="breadth"></div>
+      <div class="bar" id="breadthbar" aria-hidden="true"></div>
+      <div class="movers">
+        <div><div class="eyebrow">Plus fortes hausses</div><ol id="gainers"></ol></div>
+        <div><div class="eyebrow">Plus fortes baisses</div><ol id="losers"></ol></div>
+      </div>
+    </div>
+    <div class="cols">
+      <div class="panel">
+        <div class="phead">
+          <h2>Scanner du robot</h2>
+          <div class="row">
+            <select id="fsector" aria-label="Filtrer par secteur" style="width:auto"></select>
+            <select id="fsig" aria-label="Filtrer par signal" style="width:auto">
+              <option value="all">Tous les signaux</option>
+              <option value="buy">Achat et achat fort</option>
+              <option value="sell">Alléger et sortir</option>
+              <option value="mine">Mes valeurs</option>
+            </select>
+          </div>
+        </div>
+        <div class="tablewrap">
+          <table>
+            <thead><tr>
+              <th data-sort="t">Valeur</th><th data-sort="c">Cours</th><th data-sort="var">Var.</th><th data-sort="val">Échangé</th><th data-sort="comp" aria-sort="descending">Score</th><th data-sort="key">Décision</th><th data-sort="rsi">RSI</th><th data-sort="news">Actu</th>
+            </tr></thead>
+            <tbody id="scan"></tbody>
+          </table>
+        </div>
+        <p class="hint" style="margin-top:8px" id="scanhint"></p>
+      </div>
+      <div class="stack">
+        <div class="panel brief" id="brief"><h2>Note du robot</h2><p class="hint">La note de marché s'affiche après la première collecte.</p></div>
+        <div class="panel"><h2>Opportunités du jour</h2><div id="opps"></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- VALEUR -->
+  <section class="screen" id="tab-valeur" hidden>
+    <div class="panel row" style="justify-content:space-between">
+      <label class="f" style="flex:1;min-width:220px">Valeur analysée<select id="vsel"></select></label>
+      <div class="seg" role="radiogroup" aria-label="Profil du robot" style="min-width:240px">
+        <label><input type="radio" name="mode" id="mode-invest" value="invest" checked>Investisseur</label>
+        <label><input type="radio" name="mode" id="mode-swing" value="swing">Trader swing</label>
+      </div>
+    </div>
+    <div id="vempty" class="panel empty" hidden></div>
+    <div id="vbody" class="screen">
+      <div class="verdict" id="verdict">
+        <div class="vhead">
+          <div><div class="eyebrow" id="vname">Décision du robot</div><p class="vword" id="vword">—</p></div>
+          <div class="vstats" id="vstats"></div>
+        </div>
+        <div class="gauge" aria-hidden="true"><div class="track"></div><div class="mk" id="mk" style="left:50%"></div></div>
+        <div class="glbl"><span>−100 sortir</span><span>attendre</span><span>acheter +100</span></div>
+        <p class="vsub" id="vsub"></p>
+        <div class="flags" id="flags"></div>
+      </div>
+      <div class="panel"><h2>Plan d'exécution</h2><div class="plan" id="plan"></div><p class="note" id="plannote"></p></div>
+      <div class="panel">
+        <div class="phead">
+          <h2>Graphique et signaux</h2>
+          <div class="rangebar" id="rangebar"><button data-r="126">6 mois</button><button data-r="252" aria-pressed="true">1 an</button><button data-r="0">Tout</button></div>
+        </div>
+        <div class="chartbox"><canvas id="cPrice" role="img" aria-label="Cours, moyennes mobiles, bandes de Bollinger, RSI et signaux du robot"></canvas></div>
+        <div class="legend"><span style="--c:var(--price)">Clôture</span><span style="--c:var(--ma50)">MM 50</span><span style="--c:var(--ma200)">MM longue</span><span style="--c:var(--accent)">Bollinger et RSI</span><span style="--c:var(--buy)">Entrée robot</span><span style="--c:var(--sell)">Sortie robot</span></div>
+      </div>
+      <div class="panel"><h2>Comité des experts</h2><div class="models" id="models"></div></div>
+      <div class="panel"><h2>Lecture de l'expert</h2><div class="expert" id="expert"></div></div>
+      <div class="panel">
+        <h2>Backtest de la méthode sur cet historique</h2>
+        <div class="kpis" id="kpis"></div>
+        <div class="chartbox small"><canvas id="cEq" role="img" aria-label="Courbe de capital du robot comparée à l'achat-conservation"></canvas></div>
+        <div class="legend"><span style="--c:var(--accent)">Robot (frais inclus)</span><span style="--c:var(--muted)">Acheter et conserver</span></div>
+        <p class="note" id="btnote"></p>
+        <div class="tablewrap" style="margin-top:12px"><table><thead><tr><th>Entrée</th><th>Prix</th><th>Sortie</th><th>Prix</th><th>Séances</th><th>Résultat net</th><th>Motif</th></tr></thead><tbody id="trades"></tbody></table></div>
+      </div>
+    </div>
+      <div class="panel" id="importpanel">
+        <details>
+          <summary>Importer un historique plus long pour cette valeur</summary>
+          <div class="stack">
+            <textarea id="paste" spellcheck="false" aria-label="Historique CSV" placeholder="Date;Ouverture;Plus haut;Plus bas;Clôture;Volume"></textarea>
+            <p class="hint">Colle l'historique exporté de ta SGI ou de Sika Finance. Il est fusionné avec celui du robot sur cet appareil (stocké dans ton navigateur).</p>
+            <div class="row"><button class="primary" id="importbtn">Fusionner l'historique</button><span class="hint" id="importmsg"></span></div>
+          </div>
+        </details>
+      </div>
+  </section>
+
+  <!-- PORTEFEUILLE -->
+  <section class="screen" id="tab-portefeuille" hidden>
+    <div class="panel">
+      <div class="phead"><h2>Mes positions</h2><span class="hint" id="pftotal"></span></div>
+      <div class="tablewrap"><table><thead><tr><th>Valeur</th><th>Qté</th><th>PRU</th><th>Cours</th><th>Valeur</th><th>+/− value</th><th>Poids</th><th>Robot</th><th>Stop suiveur</th><th></th></tr></thead><tbody id="pos"></tbody></table></div>
+      <div class="row" style="margin-top:12px">
+        <select id="addt" aria-label="Valeur" style="width:auto;min-width:160px"></select>
+        <input type="number" id="addq" placeholder="Quantité" min="1" step="1" style="width:120px" aria-label="Quantité">
+        <input type="number" id="addp" placeholder="Prix moyen" min="1" step="5" style="width:130px" aria-label="Prix de revient unitaire">
+        <button class="primary" id="addbtn">Ajouter la position</button>
+      </div>
+    </div>
+    <div class="cols">
+      <div class="panel">
+        <h2>Plan du versement mensuel</h2>
+        <div class="plan" id="mplan"></div>
+        <p class="note" id="mnote"></p>
+      </div>
+      <div class="panel stack">
+        <h2>Capital et risque</h2>
+        <div class="grid2">
+          <label class="f">Capital (F CFA)<input type="number" id="capital" min="0" step="10000" value="1000000"></label>
+          <label class="f">Versement mensuel<input type="number" id="monthly" min="0" step="5000" value="100000"></label>
+          <label class="f">Risque par position (%)<input type="number" id="risk" min="0.1" max="5" step="0.1" value="1.5"></label>
+          <label class="f">Frais par ordre (%)<input type="number" id="fee" min="0" max="5" step="0.05" value="1.2"></label>
+          <label class="f">Seuil d'entrée<input type="number" id="thrIn" min="0" max="80" step="5" value="20"></label>
+          <label class="f">Seuil de sortie<input type="number" id="thrOut" min="-80" max="0" step="5" value="-20"></label>
+          <label class="f">Stop (× ATR)<input type="number" id="atrk" min="1" max="6" step="0.5" value="3"></label>
+          <label class="f">Poids max par ligne (%)<input type="number" id="maxline" min="5" max="100" step="5" value="25"></label>
+        </div>
+        <p class="hint">Frais : mets le taux réel de ta SGI (commission, frais BRVM et dépositaire, TVA). Ces réglages et tes positions restent sur cet appareil : ils ne sont jamais publiés.</p>
+      </div>
+    </div>
+    <div class="panel">
+      <h2>Valeurs suivies en direct</h2>
+      <p class="hint" style="margin-bottom:10px">Ce sont les valeurs pour lesquelles tu reçois des alertes Telegram (variation forte, changement de signal, actualité). Pour modifier la liste, édite le fichier <span class="mono">docs/data/config.json</span> de ton dépôt GitHub.</p>
+      <div class="wl" id="wl"></div>
+      <p class="hint" style="margin-top:10px" id="wledit"></p>
+    </div>
+    <div class="panel">
+      <details>
+        <summary>Les règles que le robot s'impose</summary>
+        <ol style="margin:0;padding-left:1.2em;display:grid;gap:7px;font-size:.86rem">
+          <li>Uniquement des ordres à cours limité. Le carnet BRVM est peu profond : un ordre au marché peut s'exécuter loin du dernier cours.</li>
+          <li>Le stop est surveillé à la clôture. Dès qu'une clôture passe sous le stop, l'ordre de vente part le lendemain.</li>
+          <li>Jamais plus de 1 à 2 % du capital perdu si le stop est touché, jamais plus de 25 % du capital sur une seule valeur.</li>
+          <li>Pas d'achat au marché le lendemain d'une séance au plafond (+7,5 %).</li>
+          <li>Une chute le jour d'un détachement de dividende n'est pas un signal technique.</li>
+          <li>Pas plus de 20 % du volume moyen quotidien acheté par séance.</li>
+          <li>Marché sans vente à découvert : un signal négatif veut dire sortir ou ne pas entrer.</li>
+        </ol>
+      </details>
+    </div>
+  </section>
+
+  <!-- ACTUALITÉS -->
+  <section class="screen" id="tab-actualites" hidden>
+    <div class="panel">
+      <div class="phead">
+        <h2>Actualités qui font bouger les cours</h2>
+        <select id="nfilter" aria-label="Filtrer les actualités" style="width:auto">
+          <option value="all">Toutes</option><option value="listed">Sociétés cotées</option><option value="mine">Mes valeurs</option><option value="strong">Impact fort</option>
+        </select>
+      </div>
+      <div class="news" id="news"></div>
+    </div>
+  </section>
+
+</div>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,14 @@
+{
+  "watchlist": [
+    "SIBC",
+    "SHEC",
+    "BOAC",
+    "BOAS",
+    "SNTS",
+    "ORAC",
+    "SGBC",
+    "NSBC"
+  ],
+  "alertMovePct": 4,
+  "backfillYears": 3
+}

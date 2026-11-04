@@ -1,0 +1,14 @@
+{
+  "name": "sentinelle-brvm",
+  "version": "1.0.0",
+  "description": "Robot de trading autonome pour la BRVM : collecte des cours, signaux, alertes Telegram, tableau de bord.",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "collect": "node src/collect.js",
+    "full": "node src/collect.js --full",
+    "serve": "npx --yes http-server docs -p 8080 -c-1"
+  },
+  "engines": { "node": ">=20" },
+  "dependencies": { "cheerio": "1.0.0" }
+}
